@@ -1,0 +1,147 @@
+---
+title: "Assignment 8 Association Rule"
+author: "Ridhwan Firdaus bin Mohd Jata"
+date: "3/31/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction
+In this section we will discuss on association rules such as looking at important supports, confidence, and lift ratios. We will apply all these aspects on an open consumer transaction database that we obtained from kaggle
+## Loading Libraries
+```{r}
+library(tidyverse)
+library(arules)
+library(arulesViz)
+library(knitr)
+library(gridExtra)
+library(lubridate)
+```
+## Dataset used
+Below is the dataset that we used. It's an csv file that has the number of transaction and corresponding item.
+```{r}
+transactions <- read.transactions("BreadBasket_DMS.csv", format="single", cols=c(3,4), sep=",", rm.duplicates=TRUE)
+transactions
+```
+The summary of our dataset is listed below
+```{r}
+summary(transactions)
+```
+The dataset contains 15.010 observations and four columns. The columns consists of Date, Time, Transaction which is a quantative variable that allow us to differentiate the transactions and lastly, the items.
+
+## Data Analysis
+Below will be the frequency plot for each item 
+```{r}
+itemFrequencyPlot(transactions, topN=15, type="absolute", col="wheat1",xlab="Item name", ylab="Frequency (absolute)", main="Absolute Item Frequency Plot")
+```
+As you can see coffee is the highest number of items bought while muffin is the lowest. Next, we will display a graph describing the time distribution. We will display the transactions per month for each month.
+```{r}
+transaction_csv <- read.csv("BreadBasket_DMS.csv")
+transaction_csv$Date <- as.Date(transaction_csv$Date, format="%m/%d/%Y")
+# Transactions per month
+transaction_csv %>%
+  mutate(Month=as.factor(month(Date))) %>%
+  group_by(Month) %>%
+  summarise(Transactions=n_distinct(Transaction)) %>%
+  ggplot(aes(x=Month, y=Transactions)) +
+  geom_bar(stat="identity", fill="mistyrose2", show.legend=FALSE, colour="black") +
+  geom_label(aes(label=Transactions)) +
+  labs(title="Transactions per month") +
+  theme_bw() 
+```
+
+## Apriori Algorithm 
+First we have to make sure to identify the optimal tresholds for support and confidence. We can try different values of support and confidence and see graphically how many rules are generated for each combination.
+```{r}
+supportLevels <- c(0.1, 0.05, 0.01, 0.005)
+confidenceLevels <- c(0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1)
+
+rules_sup10 <- integer(length=9)
+rules_sup5 <- integer(length=9)
+rules_sup1 <- integer(length=9)
+rules_sup0.5 <- integer(length=9)
+
+# Apriori algorithm with a support level of 10%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup10[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[1], 
+                                   conf=confidenceLevels[i], target="rules")))
+  
+}
+
+# Apriori algorithm with a support level of 5%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup5[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[2], 
+                                  conf=confidenceLevels[i], target="rules")))
+  
+}
+
+# Apriori algorithm with a support level of 1%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup1[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[3], 
+                                  conf=confidenceLevels[i], target="rules")))
+  
+}
+
+# Apriori algorithm with a support level of 0.5%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup0.5[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[4], 
+                                    conf=confidenceLevels[i], target="rules")))
+  
+}
+```
+Then we create a graph to see the number of rules generated with a support level of 10%, 5%, 1% and 0.5%.
+```{r}
+# Data frame
+num_rules <- data.frame(rules_sup10, rules_sup5, rules_sup1, rules_sup0.5, confidenceLevels)
+
+# Number of rules found with a support level of 10%, 5%, 1% and 0.5%
+ggplot(data=num_rules, aes(x=confidenceLevels)) +
+  
+  # Plot line and points (support level of 10%)
+  geom_line(aes(y=rules_sup10, colour="Support level of 10%")) + 
+  geom_point(aes(y=rules_sup10, colour="Support level of 10%")) +
+  
+  # Plot line and points (support level of 5%)
+  geom_line(aes(y=rules_sup5, colour="Support level of 5%")) +
+  geom_point(aes(y=rules_sup5, colour="Support level of 5%")) +
+  
+  # Plot line and points (support level of 1%)
+  geom_line(aes(y=rules_sup1, colour="Support level of 1%")) + 
+  geom_point(aes(y=rules_sup1, colour="Support level of 1%")) +
+  
+  # Plot line and points (support level of 0.5%)
+  geom_line(aes(y=rules_sup0.5, colour="Support level of 0.5%")) +
+  geom_point(aes(y=rules_sup0.5, colour="Support level of 0.5%")) +
+  
+  # Labs and theme
+  labs(x="Confidence levels", y="Number of rules found", 
+       title="Apriori algorithm with different support levels") +
+  theme_bw() +
+  theme(legend.title=element_blank())
+```
+From the graph above we can see that at a support level of 1% we can get 50 rules, of which 13 of them have confidence of at least 50%. Therefore for our execution of apriori algorithm we will use a support level of 1% and a confidence level of 50%.
+
+```{r}
+rules_sup1_conf50 <- apriori(transactions, parameter=list(sup=supportLevels[3],conf=confidenceLevels[5], target="rules"))
+inspect(rules_sup1_conf50)
+```
+According to the rules above what we can intepret is
+1) 52% of the customers who bought a hot chocolate also bought a coffee.
+2) 63% of the customers who bought a spanish brunch also bought a coffee.
+3) 73% of the customers who bought a toast also bought a coffee.
+
+The following graph represents rules as graph with items as labbled vertices and rules represented as vertices connected to items using arrows.
+```{r}
+plot(rules_sup1_conf50, method="graph")
+```
+We can represent the rules as a grouped matrix-based visualization.
+```{r}
+plot(rules_sup1_conf50, method="grouped")
+```
+We have reviewed some statistical concepts (support, confidence, lift and conviction) to select interesting rules, we have chosen the appropriate values to execute the algorithm and finally we have visualized the resulting association rules

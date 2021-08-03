@@ -1,0 +1,98 @@
+---
+title: "Assignment 1 BDA Data Visualization"
+author: "Ridhwan"
+date: "3/9/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Importing library 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(tidyr)
+library(reshape2)
+library(RColorBrewer)
+library(ggrepel)
+```
+
+## Dataset
+
+In this assignment we will be using the pokemon dataset. Pokemon which is also known as Pocket Monster in Japan refers to 898 fictional species that has made apperances in the Pokemon cartoon. We will start by reading the csv file of the pokemon dataset
+```{r}
+df = read.csv("pokemon.csv")
+df = as_tibble(df)
+
+```
+We will only select a few columns for our analysis from this entire dataset.
+
+```{r}
+df = select(df, NUMBER, NAME, HP, WEIGHT, HEIGHT, SPD, ATK, DEF, SP_ATK, SP_DEF, TYPE1, TYPE2, GENERATION, LEGENDARY)
+```
+
+##Density Plot of various Pokemon Attributes
+
+```{r}
+densityplothp <- ggplot(data = df, aes(HP)) + geom_density(col ="white",fill ="blue",alpha = 0.8) + ggtitle("Density Plot of Pokemon's Health Point")
+
+densityplotspeed <- ggplot(data=df, aes(SPD)) + geom_density(col="white", fill="pink", alpha=0.8) + ggtitle("Density Plot of Speed Characterstics")
+
+densityplotattack <- ggplot(data = df, aes(ATK)) + geom_density(col ="white",fill ="darkorchid",alpha = 0.8) + ggtitle("Density Plot of Pokemon's Attack Power")
+
+densityplotdefense <- ggplot(data = df, aes(DEF)) + geom_density(col ="white",fill ="firebrick",alpha = 0.8) + ggtitle("Density Plot of Pokemon's Defense")
+
+densityplotheight <- ggplot(data = df, aes(HEIGHT)) + geom_density(col ="white",fill ="green",alpha = 0.8) + ggtitle("Density Plot of Pokemon's Height")
+
+densityplotweight <- ggplot(data = df, aes(WEIGHT)) + geom_density(col ="white",fill ="mediumturquoise",alpha = 0.8) + ggtitle("Density Plot of Pokemon's Weight")
+
+grid.arrange(densityplothp, densityplotspeed, densityplotattack, densityplotdefense, densityplotheight, densityplotweight, ncol=2)
+```
+
+
+## Number of Pokemon based on their Primary and Secondary Type
+
+In this section we will figure out which primary and secondary type has the highest number of Pokemons. Most pokemons are water type followed by normal. Flying Pokemons are the least. A very large number of Pokemon does 
+not have a secondary type.
+
+
+```{r}
+bartype1 <- ggplot(data = df, aes(TYPE1))+ geom_bar(aes(fill = ..count..), alpha =0.8) + theme(axis.text.x = element_text(angle = 90,hjust = 0)) + ggtitle("Number of Pokemons based\n on Type 1") + coord_flip()
+bartype2 <- ggplot(data = df, aes(TYPE2))+ geom_bar(aes(fill = ..count..), alpha =0.8) + theme(axis.text.x = element_text(angle = 90,hjust = 0)) + ggtitle("Number of Pokemons based\n on Type 2") + coord_flip()
+grid.arrange(bartype1,bartype2,ncol = 2)
+```
+
+## Boxplot of Pokemon Attributes
+
+In this section we will investigate the median of all characteristics of non legendary and legendary Pokemon by using the boxplot figure. As you can see from the figure there are more outliers that occur for normal pokemons compared to the legendary pokemons. Also there are more outliers in the HP attribute for normal pokemons , however there are less variatons among them.
+
+
+```{r}
+boxplotattributedf <- select(df,TYPE1,LEGENDARY,HP,DEF,ATK,SP_ATK,SP_DEF,SPD)
+boxplotattributelegendary <- filter(boxplotattributedf, LEGENDARY == 1)
+boxplotattributenonlegendary <- filter(boxplotattributedf, LEGENDARY == 0)
+box_plot_attr_leg_long <- gather(boxplotattributelegendary, attribute, value, -c(TYPE1, LEGENDARY))
+box_plot_attr_nor_long <- gather(boxplotattributenonlegendary, attribute, value, -c(TYPE1, LEGENDARY))
+boxplotleg <- ggplot(data = box_plot_attr_leg_long, aes(attribute, value)) + geom_boxplot(fill="pink") + ggtitle("Boxplot for Legendary Pokemon")
+boxplotnormal <- ggplot(data = box_plot_attr_nor_long, aes(attribute, value)) + geom_boxplot(fill = "yellow2") + ggtitle("Boxplot for Normal Pokemon")
+grid.arrange(boxplotleg, boxplotnormal,ncol=2)
+```
+
+## Scatter plot 
+
+In this section we want to see what are the correlations between the Defense and the Attack characteristics of the Pokemon. The legendary Pokemons are labelled in red dots while the normal Pokemons are labelled with blue dots.
+As you can see from the scatter plot below, for the normal pokemons there seem to exist a linear relationship between the defense attribute and the attack attribute while the legendary pokemons attributes does not follow the trend. However most legendary pokemons in general will be equipped with a higher attack and defense attribute compared to the normal pokemons.
+```{r}
+newdf <- df[df$LEGENDARY <= 1,]
+ggplot(data = newdf, aes(ATK,DEF)) + geom_point(aes(color = LEGENDARY), alpha = 0.8) + scale_color_gradient(low = "darkblue",high = "red") + ggtitle("Correlation between Attack and Defense charactersistics between pokemons") +
+geom_label_repel(data = subset(newdf, ATK > 150 | DEF > 150 | ATK<25),aes(label= NAME), box.padding = 0.35, point.padding = 0.5, segment.color ='grey')
+```
+blablabla hamizah is so beautiful
+```{r}
+df <- hamizahisbeautiful
+```
+
+

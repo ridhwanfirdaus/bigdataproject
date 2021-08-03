@@ -1,0 +1,85 @@
+---
+title: "Logistic Regression and Correlation Matrix"
+author: "Ridhwan Firdaus bin Mohd Jata"
+date: "3/11/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(caTools)
+```
+
+##Dataset 
+In this investigation, we will be using the diabetes dataset. Below is the structure of the dataset
+```{r}
+df = read.csv('diabetes.csv', header = TRUE)
+str(df)
+head(df)
+```
+
+## Creating Age category column 
+We will classify all ages into certain category column
+```{r}
+df$AgeCat <- ifelse(df$Age < 21, "<21", 
+                   ifelse((df$Age>=21) & (df$Age<=25), "21-25", 
+                   ifelse((df$Age>25) & (df$Age<=30), "25-30",
+                   ifelse((df$Age>30) & (df$Age<=35), "30-35",
+                   ifelse((df$Age>35) & (df$Age<=40), "35-40",
+                   ifelse((df$Age>40) & (df$Age<=50), "40-50",
+                   ifelse((df$Age>50) & (df$Age<=60), "50-60",">60")))))))
+df$AgeCat <- factor(df$AgeCat, levels = c('<21','21-25','25-30','30-35','35-40','40-50','50-60','>60'))
+table(df$AgeCat)
+head(df)
+```
+
+## Spliting dataset into train and test dataset
+```{r}
+require(caTools)
+set.seed(3)
+split = sample.split(df$Outcome,SplitRatio = 0.75)
+train = subset(df, split== TRUE)
+test = subset(df, split== FALSE)
+head(train)
+```
+```{r}
+nrow(df)
+nrow(train)
+nrow(test)
+table(df$Outcome)
+```
+
+##Baseline accuracy
+```{r}
+baseline <- round(500/nrow(df),2)
+baseline
+```
+
+Do not select a model whose accuracy is lower than 0.65
+
+## Fit Model using all independent variables
+```{r}
+model = glm(Outcome~ ., data = train, family = binomial)
+summary(model)
+```
+## Make predictions on test set
+```{r}
+Predict <- predict(model,type = "response" , newdata = test)
+```
+
+## Produce Confusion matrix based on the predictions
+```{r}
+test_tab <- table(test$Outcome, Predict > 0.5)
+test_tab
+accuracy_test <- round(sum(diag(test_tab))/sum(test_tab),2)
+sprintf("Accuracy on test set is %s", accuracy_test)
+```
+
+ 
+
+
+
+
+

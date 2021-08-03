@@ -1,0 +1,390 @@
+---
+title: "Extended Assignment Big Data Analytics"
+author: "Ridhwan Firdaus bin Mohd Jata Student ID: 16000250 Course:COE"
+date: "4/1/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+Adding libraries
+```{r}
+library(e1071)
+library(mlr)
+```
+
+
+Question: Perform single and multiple linear regression to show the best fit between dependent and independent variables. Use any data set with at least two independent variable and one dependent variable
+In this investigation we will be using the  National Basketball Association Dataset in order to answer what is the amount of wins to qualify for the nba playoffs. Below is the structure of data used.
+
+## Data 
+```{r}
+nbadf = read.csv("NBA_train.csv")
+test = read.csv("NBA_test.csv")
+head(nbadf)
+```
+In order to know how the team's performance against other teams, we will add a variable that will show the difference between the points scored by that team and points scored by the other teams on them (points allowed)
+
+```{r}
+nbadf$PointsDiff = nbadf$PTS - nbadf$oppPTS
+head(nbadf)
+```
+
+In order to make sure we have strong correlation between points difference and wins, we can use the correlation function in order to check wether points difference and wins correlates together
+```{r}
+cor(nbadf$PointsDiff, nbadf$W)
+```
+
+We have strong correlation between the points difference and wins
+
+## Linear Regression model to predict wins 
+We will now build a single Linear Regression Model to predict wins by using the pointsdiff variable
+```{r}
+LinearRegressionWinModel <- lm(W ~ PointsDiff, data = nbadf)
+print(LinearRegressionWinModel)
+summary(LinearRegressionWinModel)
+```
+So by using linear regression we can identify the amount of wins that will obtain from by that particular team by just using the point difference between their teams and their opponents.
+$$ W = 0.03259*Points Difference + 41 $$
+Therefore based on the equation, that particular team will have a baseline wins of 41 wins. However any points difference (negative or positive) will affect the wins of that particular team by the multiplication of 0.03259
+
+## Multiple linear regression to predict the number of wins 
+In this section we will build an equation to predict the number of wins based on several variables. In this case, we will predict using some common basketball statistics
+Below is the term used for common basketball statistics
+X2PA = two points attempt, X3PA = three points attempt, FTA = free throw attempts, AST = assists, ORB = offensive rebounds, DRB = defensive rebounds, TOV = turnovers, STL = steals, BLK = blocks
+
+## Fitting the model
+
+```{r}
+MultipleLinearRegressionWinModel = lm(W ~ X2PA + X3PA + FTA + AST + ORB + DRB + TOV + STL + BLK , data = nbadf)
+print(MultipleLinearRegressionWinModel)
+summary(MultipleLinearRegressionWinModel)
+```
+
+As you can see from above, by using the multiple linear regression model we can identify the number of wins based on the common basketball statistics. All of the criterias are significant to wins, except for the number of blocks. Based on the result, the equation for number of wins by any nba teams is 
+$$ W = -0.019154*X2PA -0.019033*X3PA +0.009955*FTA+0.030856*AST + 0.023991 * ORB + 0.049331*DRB-0.044629*TOV+0.050993*STL +0.005141*BLK  -31.569085 $$
+Therefore, we can identify the number of wins that team will achieve in a single season by plugging in all of the common basketball statistics to the equation above
+
+## Logistic Regression to identify wether the team will qualify to the playoffs
+
+Next, we will convert the number of wins into wether the team is qualified for the playoffs. From the dataframe that we obtained it is reasonable to say that a team who wins 35 games and fewer will be not making the playoffs. The team who wins around 45 games will be almost making the playoffs. Therefore we will use the amount of wins column to create a categorical playoff column in the dataframe.
+
+In this section we already have the data if the team qualify to the playoffs
+
+```{r}
+head(nbadf$Playoffs)
+```
+
+Next, we will perform the logistic regression in order to know if the team will qualify for the playoffs or not. We will fit all the important common basketball statistical variable into our model. We will then predict using our model using our test data.  
+```{r}
+model <- glm(Playoffs ~ X2PA + X3PA + FTA + AST + ORB + DRB + TOV + STL + BLK,family=binomial(link='logit'),data=nbadf)
+summary(model)
+anova(model, test = "Chisq")
+test$PointsDiff = test$PTS - test$oppPTS
+Predict <- predict(model,type = "response" , newdata = test)
+test_tab <- table(test$Playoffs, Predict > 0.5)
+test_tab
+accuracy_test <- round(sum(diag(test_tab))/sum(test_tab),2)
+sprintf("Accuracy on test set is %s", accuracy_test)
+```
+
+From the table above the accuracy of the logistic regression is 79 %. The free throw attempt, defensive rebound, Free throw attempt, Assists, and steals plays a big part for the team to qualify for playoffs. The confusion matrix is also listed above. From this we can determine the sensitivity and specificity
+
+## Naive Bayesian to determine if the team will qualify for the playoffs
+
+Next we will undergo and perform Naive Bayesian classification on our data in order to identify which teams will qualify for the playoffs. However before that we have to classify our independent and dependent variables to right or categorical values.We create a new categorical column to determine if the team is a good or bad defensive team. We also create an another column to determine if the team is a good or bad offensive team. by doing this we convert some numerical categories in that particular dataframe into  categorical categories. Listed below is the dataset that will be used for our naive bayesian model.
+
+```{r}
+traincopy <-data.frame(nbadf)
+tracemem(traincopy)==tracemem(nbadf)
+traincopy$Defense[traincopy$oppPTS < 8000] = "Good"
+traincopy$Defense[traincopy$oppPTS >= 8000] = "Bad"
+traincopy$Offense[traincopy$PTS < 8000] = "Bad"
+traincopy$Offense[traincopy$PTS >= 8000] = "Good"
+traincopy$Winsmorethan35[traincopy$W > 34] = TRUE
+traincopy$Winsmorethan35[traincopy$W <= 34] = FALSE
+traincopy$Defense <- factor(traincopy$Defense)
+traincopy$Offense <- factor(traincopy$Offense)
+traincopy$Winsmorethan35 <- factor(traincopy$Winsmorethan35)
+traincopy$Playoffs <-factor(traincopy$Playoffs)
+keeps <- c("Defense","Offense","Winsmorethan35","Playoffs")
+datakeep <- traincopy[keeps]
+head(datakeep)
+```
+
+
+We will fit the model into the dataset in order to predict the which team will qualify for the playoffs
+
+```{r}
+naivebayesmodel=naiveBayes(Playoffs ~., data=datakeep)
+naivebayesmodel
+```
+
+Prediction on the dataset
+
+```{r}
+predict=predict(naivebayesmodel,datakeep)
+```
+
+Confusion matrix to check accuracy
+
+```{r}
+#table(predict,datakeep$Playoffs)
+table(predict,datakeep$Playoffs)
+```
+##Create a classification task on the dataset and specify the target feature
+```{r}
+task = makeClassifTask(data = datakeep, target = "Playoffs")
+```
+
+##Initialize the Naive Bayes classifier
+```{r}
+selectedmodel = makeLearner("classif.naiveBayes")
+```
+
+##Train the model
+```{r}
+NB_mlr = train(selectedmodel, task)
+```
+
+## Read the model learn results
+```{r}
+NB_mlr$learner.model
+```
+
+#Predict on the dataset without passing the target feature
+```{r}
+predictionsmlr = as.data.frame(predict(NB_mlr, newdata = datakeep[,1:3]))
+```
+
+##Confusion matrix to check accuracy 
+```{r}
+confusionmatrix <- table(predictionsmlr[,1],datakeep$Playoffs)
+confusionmatrix
+```
+
+## Accuracy ,sensitivity and specificity
+```{r}
+accuracy <- round(sum(diag(confusionmatrix))/sum(confusionmatrix),2)
+sprintf('Accuracy is %s', accuracy)
+sensitivity <- round(478/(478 + 100), 2)
+sprintf('Sensitivity is %s', sensitivity)
+specificity <- round(255/(255 + 2),2)
+sprintf('Specificity is %s', specificity)
+```
+
+## Analysis Question number 1
+
+Based on the confusion matrix listed above we could see that the accuracy of the naive bayessian is 0.88. The sensitivity of the naive bayessian is 0.83 while the specificity is 0.99. Therefore making the naive bayesian model more accurate than our logistic regression model in predicting which team will qualify to the playoffs based on common basketball statistics. As naive bayessian is geared towards classifying categorized datasets, linear and logistic regression are more suited to identify the upcoming real values. 
+
+## Question number 2 SVD and PCA
+
+In this section , we will calculate the SVD and PCA on a dataset that contains large observations (at least 100 samples) and considerable number of attributes (at least 10 independent variables). 
+
+Loading the library
+```{r}
+library(tidyverse)
+library(FactoMineR)
+library("factoextra")
+```
+
+Dataset used
+In this investigation we will still be using the  National Basketball Association Dataset in order to answer what is the amount of wins to qualify for the nba playoffs. Below is the structure of data used. The reason why we choose this particular dataset is because of it's large amount of samples and considerable number of attributes.
+```{r}
+nbadf = read.csv("NBA_train.csv")
+test = read.csv("NBA_test.csv")
+head(nbadf)
+```
+
+## Single value decomposition 
+The method of SVD works by reducing a matrix A of rank R to a matrix of rank k and is applicable for both square and rectangular matrices.
+The singular value decomposition of the matrix is computed using the svd() function.In this case we only take the top 100 value from the dataset. After that we will compute the singular value decomposition.
+
+```{r}
+
+keep <- subset(nbadf, select = -c(SeasonEnd, Team,Playoffs))
+keep2 <- keep[1:100,]
+#cx <- sweep(keep2, 2, colMeans(keep2), "-")
+data.svd <-svd(keep2)
+head(data.svd)
+
+```
+Listed above is the eigenvalue and eigenvector of the singular value decomposition.The entries in the diagonal matrix Σ are the singular values r. The vector contains all the singular values of the matrix sorted decreasingly.The singular values are the diagonal entries of the S matrix and are arranged in descending order.SVD is an essential technique in many statistical methods such as principal component analysis and factor analysis.
+
+## PCA Automated Techniques
+Principal Component Analysis is a mathematical technique based on the eigenvalue decomposition/singular value decomposition of a data matrix (or correlation/covariance matrix).
+First, the typical principal component analysis on the samples would be to transpose the data such that the samples are rows of the data matrix. The prcomp function can be used to return the principal components and other variables
+```{r}
+pca<-prcomp(keep2, center=TRUE, scale=TRUE)
+summary(pca)
+```
+
+Based on the table above we can see that the in highest decrease in explained variance started at around principal components 8.
+
+## Visualize eigenvalues (scree plot). Show the percentage of variances explained by each principal component.
+Plot with contribution of PC to the explained variance
+```{r}
+fviz_eig(pca)
+```
+
+Based on the graph above we could see that by Using the so-called ‘elbow method’ we could see that the highest decrease in explained variance is seen after the eigth principal component, hence it can be used to explain the original variables.
+
+```{r}
+fviz_pca_var(pca, col.var = "steelblue")
+```
+
+The circular plot above shows that all of the variables that we used are negatively corrrelated or not correlated at all to the first principal components. However the FGA, oppPTS, ORB, X2PA are all positively correlated to the second principal components. However the rest of the variables are negative correlated or not correlated at all to the second principal components. 
+
+## Question number 3 association rule miner (Apriori algorithm) 
+
+In this section we will discuss on association rules such as looking at important aspects such as supports, confidence, and lift ratios. We will apply all these aspects on an open consumer transaction database that we obtained from kaggle.We will conduct association rule miner (Apriori algorithm) on a selected consumer transaction database (which can be obtained online or simulated yourself) with at least seven (7) different items of purchase and minimum 20 transactions recorded. 
+
+## Loading Libraries
+```{r}
+library(tidyverse)
+library(arules)
+library(arulesViz)
+library(knitr)
+library(gridExtra)
+library(lubridate)
+```
+
+## Dataset used
+Below is the dataset that we used. It's an csv file that has the number of transactions and corresponding items.The dataset contains 15.010 observations and four columns. The columns consists of Date, Time, Transaction which is a quantative variable that allow us to differentiate the transactions and lastly, the items.
+```{r}
+transactions <- read.transactions("BreadBasket_DMS.csv", format="single", cols=c(3,4), sep=",", rm.duplicates=TRUE)
+transactions
+transactions1<- read.csv("BreadBasket_DMS.csv")
+```
+Below is the frequency of each items bought in a transactions. Based on the plot we can see that coffee is the biggest seller in the bakery.
+```{r}
+itemFrequencyPlot(transactions, topN=15, type="absolute", col="wheat1",xlab="Item name", ylab="Frequency (absolute)", main="Absolute Item Frequency Plot")
+```
+
+We will then identify the optimal tresholds for support and confidence. We can try different values of support and confidence and see graphically how many rules are generated for each combination.
+
+```{r}
+supportLevels <- c(0.1, 0.05, 0.01, 0.005)
+confidenceLevels <- c(0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1)
+
+rules_sup10 <- integer(length=9)
+rules_sup5 <- integer(length=9)
+rules_sup1 <- integer(length=9)
+rules_sup0.5 <- integer(length=9)
+
+# Apriori algorithm with a support level of 10%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup10[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[1], 
+                                   conf=confidenceLevels[i], target="rules")))
+  
+}
+
+# Apriori algorithm with a support level of 5%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup5[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[2], 
+                                  conf=confidenceLevels[i], target="rules")))
+  
+}
+
+# Apriori algorithm with a support level of 1%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup1[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[3], 
+                                  conf=confidenceLevels[i], target="rules")))
+  
+}
+
+# Apriori algorithm with a support level of 0.5%
+for (i in 1:length(confidenceLevels)) {
+  
+  rules_sup0.5[i] <- length(apriori(transactions, parameter=list(sup=supportLevels[4], 
+                                    conf=confidenceLevels[i], target="rules")))
+  
+}
+```
+
+Then we create a graph to see the number of rules generated with a support level of 10%, 5%, 1% and 0.5%.
+```{r}
+# Data frame
+num_rules <- data.frame(rules_sup10, rules_sup5, rules_sup1, rules_sup0.5, confidenceLevels)
+
+# Number of rules found with a support level of 10%, 5%, 1% and 0.5%
+ggplot(data=num_rules, aes(x=confidenceLevels)) +
+  
+  # Plot line and points (support level of 10%)
+  geom_line(aes(y=rules_sup10, colour="Support level of 10%")) + 
+  geom_point(aes(y=rules_sup10, colour="Support level of 10%")) +
+  
+  # Plot line and points (support level of 5%)
+  geom_line(aes(y=rules_sup5, colour="Support level of 5%")) +
+  geom_point(aes(y=rules_sup5, colour="Support level of 5%")) +
+  
+  # Plot line and points (support level of 1%)
+  geom_line(aes(y=rules_sup1, colour="Support level of 1%")) + 
+  geom_point(aes(y=rules_sup1, colour="Support level of 1%")) +
+  
+  # Plot line and points (support level of 0.5%)
+  geom_line(aes(y=rules_sup0.5, colour="Support level of 0.5%")) +
+  geom_point(aes(y=rules_sup0.5, colour="Support level of 0.5%")) +
+  
+  # Labs and theme
+  labs(x="Confidence levels", y="Number of rules found", 
+       title="Apriori algorithm with different support levels") +
+  theme_bw() +
+  theme(legend.title=element_blank())
+```
+
+From the graph above we can see that at a support level of 1% we can get 50 rules, of which 13 of them have confidence of at least 50%. Therefore for our execution of apriori algorithm we will use a support level of 1% and a confidence level of 50%. From the table below, it indicates that Toast followed by Coffee has the highest lift, followed by spanish brunch and hot chocolate.
+
+```{r}
+rules_sup1_conf50 <- apriori(transactions, parameter=list(sup=supportLevels[3],conf=confidenceLevels[5], target="rules"))
+inspect(rules_sup1_conf50)
+```
+
+The following graph represents rules as graph with items as labbled vertices and rules represented as vertices connected to items using arrows. As you can see toast has the highest lift out of all items followed by spanish brunch.
+```{r}
+plot(rules_sup1_conf50, method="graph")
+```
+
+We can represent the rules as a grouped matrix-based visualization. It is listed from the rule that has the highest lift and it will decrease throughout the graph. From this we could see that the Toast is popular with coffee followed by a spanish brunch. However, a lot of customers also like to just buy coffee. 
+```{r}
+plot(rules_sup1_conf50, method="grouped")
+```
+
+##Analysis
+According to the rules above what we can intepret is
+1) 52% of the customers who bought a hot chocolate also bought a coffee.
+2) 63% of the customers who bought a spanish brunch also bought a coffee.
+3) 73% of the customers who bought a toast also bought a coffee.
+
+Customers will incline to buy toast after they bought coffee as it possessed the confidence of 72%. It seemed that coffee is very popular seller for this bakery. Therefore it is advised to keep increasing and maintaining the quality of their coffee. 
+
+
+Taking one of the highest lift ratios, convert the consequent based on your selected frequent item set of my transaction database as dependent variable and perform
+classification decision tree and measure the accuracy.
+
+```{r}
+# Classification Tree with rpart
+#library(rpart)
+
+# grow tree
+#fit <- rpart(Transaction ~ Item ,
+  #           method="class", data=transactions1)
+
+#printcp(fit) # display the results
+#plotcp(fit) # visualize cross-validation results
+#summary(fit) # detailed summary of splits
+
+# plot tree
+#plot(fit, uniform=TRUE,
+     #main="Classification Tree for Kyphosis")
+#text(fit, use.n=TRUE, all=TRUE, cex=.8)
+#lhs + support + confidence + coverage + 
+```
+

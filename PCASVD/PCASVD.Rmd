@@ -1,0 +1,57 @@
+---
+title: "Assignment 6 PCA and SVD"
+author: "Ridhwan Firdaus bin Mohd Jata"
+date: "3/30/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(tidyverse)
+library(FactoMineR)
+library("factoextra")
+```
+
+## Data used for SVD and PCA
+In this section we will be using the pokemon dataset.
+```{r}
+data <- read.csv('Pokemon.csv')
+#data <- data %>% select(HP, Attack, Defense, Speed, Sp..Atk, Sp..Def)
+summary(data)
+```
+```{r}
+head(data)
+```
+
+## Single value decomposition 
+The method of SVD works by reducing a matrix A of rank R to a matrix of rank k and is applicable for both square and rectangular matrices.
+The singular value decomposition of the matrix is computed using the svd() function.
+
+```{r}
+data.svd <- svd(data)
+data.svd$d 
+```
+The entries in the diagonal matrix Σ are the singular values r. The vector contains all the singular values of the matrix sorted decreasingly.The singular values are the diagonal entries of the S matrix and are arranged in descending order.SVD is an essential technique in many statistical methods such as principal component analysis and factor analysis.
+
+## PCA Automated Techniques
+First, the typical principal component analysis on the samples would be to transpose the data such that the samples are rows of the data matrix. The prcomp function can be used to return the principal components and other variables
+```{r}
+pca<-prcomp(data, center=TRUE, scale=TRUE)
+summary(pca)
+```
+
+Based on the table above we could see that the least proportion of variance started at 
+## Visualize eigenvalues (scree plot). Show the percentage of variances explained by each principal component.
+Plot with contribution of PC to the explained variance
+```{r}
+fviz_eig(pca)
+```
+
+```{r}
+fviz_pca_var(pca, col.var = "steelblue")
+```
+
+## Analysis
+Using the so-called ‘elbow method’ we see that the highest decrease in explained variance is seen after the third principal component, hence it can be used to explain the original variables. The circular plot shows that all of the variables are corrrelated to the first principal components. Howeverm only Defense, Special and normal is correlated with the second principal component. Rest of the variables are either correlated negatively or not correlated at all

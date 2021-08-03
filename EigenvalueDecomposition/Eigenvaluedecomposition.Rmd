@@ -1,0 +1,49 @@
+---
+title: "Assignment 5 eigenvalue and eigenvector decomposition"
+author: "Ridhwan Firdaus bin Mohd Jata"
+date: "3/30/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(magrittr) # needs to be run every time you start R and want to use %>%
+library(dplyr)
+library(psych)
+```
+
+## Data used for eigenvalue and eigenvector decomposition
+In this section the data used for eigenvalue and eigenvector decomposition will be from kaggle. The link is attached here https://www.kaggle.com/abcsds/pokemon . Below is the structure of the data
+
+```{r}
+data <- read.csv('Pokemon.csv')
+data_pca <- data %>% select(HP, Attack, Defense, Speed, Sp..Atk, Sp..Def)
+summary(data_pca)
+```
+```{r}
+head(data_pca)
+```
+
+## Placing the data on a square matrix
+The raw data is imported and then a correlation matrix is generated (this is using simulated data based on the original correlation matrix).
+
+```{r}
+matrix<-cor(data_pca)
+matrix
+```
+The next step is to find out wether the data can be reduced or not. One basic test is Bartlett’s test of sphericity – the null hypothesis of the test is that the correlation matrix is an identity matrix – or that the matrix has one’s on the diagonal and zeroes on all the off diagonals.
+```{r}
+cortest.bartlett(matrix, n = nrow(data))
+```
+Test’s results agree with the correlation matrix form, it is straightforward that variables are positively correlated with each other.Next step is to solve the eigenvalues and eigenvectors from the correlation matrix
+```{r}
+eigen<-eigen(matrix) 
+L<-eigen$values
+Vm<-matrix(0,nrow=ncol(data_pca),ncol=ncol(data_pca))
+diag(Vm)<-L
+Vm
+```
+Therefore listed above is the eigenvalue of the correlation matrix
+

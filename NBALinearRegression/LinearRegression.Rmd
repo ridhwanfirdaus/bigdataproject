@@ -1,0 +1,77 @@
+---
+title: "Assignment 2 Linear Regression"
+author: "Ridhwan Firdaus bin Mohd Jata"
+date: "3/10/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(ggplot2)
+```
+
+## R Markdown
+
+In this assignment we will be using the National Basketball Association Dataset in order to answer what is the parameters needed to qualify for the playoff 
+
+```{r}
+nbadf = read.csv("NBA_train.csv")
+head(nbadf)
+str(nbadf)
+```
+
+
+## From the table we can see that a team who wins 35 games and fewer will be not making the playoffs. The team who wins around 45 games will be almost making the playoffs.
+
+## Adding more data into the dataframe
+
+In order to know how the team's performance against other teams, we will add a variable that will show the difference between the points scored by that team and points scored by the other teams on them (points allowed)
+```{r}
+nbadf$PointsDiff = nbadf$PTS - nbadf$oppPTS
+head(nbadf)
+```
+
+## Visualizing the linear relationship, Graphical Analysis
+We will be using a scatter plot in order to identify if there is a linear relationship between the number of wins that the team had and their point difference
+
+```{r}
+ggplot(data = nbadf,aes(PointsDiff,W)) + geom_point(aes(color = Team)) + geom_smooth() + ggtitle("Wins vs Point difference")
+```
+From the graph above we can clearly see the strong linear relationship between the number of wins obtained by teams versus the point difference between them and their opponents.Therefore, in order to pursue more of this investigation, we will use linear regression in order to predict how many wins a team can have given their point difference.
+
+##Correlation
+
+Correlation is a statistical measure that suggests the level of linear dependence between two variables, that occur in pair – just like what we have here in point difference and wins. Correlation can take values between -1 to +1. If we observe for every instance where speed increases, the distance also increases along with it, then there is a high positive correlation between them and therefore the correlation between them will be closer to 1. The opposite is true for an inverse relationship, in which case, the correlation between the variables will be close to -1.
+
+```{r}
+cor(nbadf$PointsDiff, nbadf$W)
+```
+
+##Linear Regression Model to Predict Wins
+We will now build the Linear Regression Model to predict wins
+```{r}
+LinearRegressionWinModel <- lm(W ~ PointsDiff, data = nbadf)
+print(LinearRegressionWinModel)
+summary(LinearRegressionWinModel)
+```
+##Regression Equation Created by linear Model
+So by using linear regression we can identify the amount of wins that will obtain from by that particular team by just using the point difference between their teams and their opponents.
+$$ W = 0.03259*Points Difference + 41 $$
+## Linear Regression Model for Points Scored 
+In this section we will build an equation to predict points scored using some common basketball statistics.
+X2PA = two points attempt, X3PA = three points attempt, FTA = free throw attempts, AST = assists, ORB = offensive rebounds, DRB = defensive rebounds, TOV = turnovers, STL = steals, BLK = blocks
+```{r}
+PointsLinearRegressionModel = lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + DRB + TOV + STL + BLK, data = nbadf)
+summary(PointsLinearRegressionModel)
+```
+As you can see from the above, only 2 points attempts, 3 point attempts, free throw attempts, assists and offensive rebound are the only significant variables that can influence the regression model. However, we still have a high multiple R squared value.
+
+## Removing insignificant variables
+```{r}
+PointsLinearRegressionModel2 = lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + STL, data=nbadf)
+summary(PointsLinearRegressionModel2)
+```
+## Multiple Linear Regression Equation 
+$$ W = -2033 + 1.05*X2PA+ 1.273*X3PA + 1.127*FTA + 0.8884*AST - 0.9743*ORB  -0.2268*STL $$

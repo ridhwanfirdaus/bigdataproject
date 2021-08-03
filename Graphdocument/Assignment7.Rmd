@@ -1,0 +1,105 @@
+---
+title: "Assignment 7 Graph Theory"
+author: "Ridhwan Firdaus bin Mohd Jata"
+date: "3/31/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+The two primary aspects of networks are a multitude of separate entities and the connections between them.The entities are referred to as nodes or vertices of a graph, while the connections are edges or links
+
+## Data used
+The data sets that will be used relates to French trains; it contains aggregate daily total trips per connecting stations.
+```{r}
+library(readr)
+
+url <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-26/small_trains.csv"
+small_trains <- read_csv(url)
+head(small_trains)
+```
+
+## Data Cleaning and preparation 
+Data will be changed in order to create a new category called routes. It contains a single entry for each connected station. It also includes the average journey time it takes to go between stations.
+```{r}
+library(dplyr)
+
+routes <- small_trains %>%  group_by(departure_station, arrival_station) %>%  summarise(journey_time = mean(journey_time_avg)) %>%  ungroup()%>%  mutate(from = departure_station,to = arrival_station) %>%  select(from, to, journey_time)
+
+head(routes)
+
+```
+## Creating the adjency matrix
+```{r}
+adjmatrix <- subset(routes, select = -c(journey_time))
+head(adjmatrix)
+edges_mat = matrix(nrow = length(adjmatrix$from), ncol = length(adjmatrix$to), data=0, dimnames = list(adjmatrix$from, adjmatrix$to))
+edges_mat[as.matrix(adjmatrix)] = 1
+head(edges_mat)
+```
+
+## Transform data into graph table
+In order to prepare routes for this transformation, it has to contain two variables specifically named from and to.The  member of the group is called a node (or vertex) in the graph, and a relationship between nodes is called an edge.
+```{r}
+library(tidygraph)
+
+graph_routes <- as_tbl_graph(routes)
+
+graph_routes
+library(stringr)
+
+graph_routes <- graph_routes %>%  activate(nodes) %>%  mutate(    title = str_to_title(name),    label = str_replace_all(title, " ", "\n")    )
+stations <- graph_routes %>%  activate(nodes) %>%  pull(title)
+
+```
+## Visualizing
+In this section we will visualize all the nodes and edges from the dataset
+```{r}
+library(ggplot2)
+library(ggraph)
+thm <- theme_minimal() +
+  theme(
+    legend.position = "none",
+     axis.title = element_blank(),
+     axis.text = element_blank(),
+     panel.grid = element_blank(),
+     panel.grid.major = element_blank(),
+  ) 
+
+theme_set(thm)
+graph_routes %>%  ggraph(layout = "kk") + geom_node_text(aes(label = label, color = name), size = 3) +geom_edge_diagonal(color = "gray", alpha = 0.4) 
+```
+## Finding the shortest distance
+In this section we will identify the shortest route from station Arras to station Nancy 
+```{r}
+from <- which(stations == "Arras")
+to <-  which(stations == "Nancy")
+
+shortest <- graph_routes %>%  morph(to_shortest_path, from, to, weights = journey_time)
+shortest %>%  mutate(selected_node = TRUE) %>%  unmorph()
+shortest <- shortest %>%   mutate(selected_node = TRUE) %>%   activate(edges) %>%   mutate(selected_edge = TRUE) %>%   unmorph() 
+shortest <- shortest %>%  activate(nodes) %>%  mutate(selected_node = ifelse(is.na(selected_node), 1, 2)) %>%  activate(edges) %>%  mutate(selected_edge = ifelse(is.na(selected_edge), 1, 2)) %>%  arrange(selected_edge)
+```
+## Visualizing the shortest distance
+```{r}
+shortest %>%
+  ggraph(layout = "kk") +
+    geom_edge_diagonal(aes(alpha = selected_edge), color = "gray") +
+    geom_node_text(aes(label = label, color =name, alpha = selected_node ), size = 3) 
+```
+## Summarizing the graph table
+```{r}
+shortest %>%
+  activate(edges) %>%
+  filter(selected_edge == 2) %>%
+  as_tibble() %>%
+  summarise(
+    total_stops = n() - 1,
+    total_time = round(sum(journey_time) / 60)
+    )
+```
+
+As we can see there will be a total of 8 stops between Arras and Nancy and the total time is 23 minutes
